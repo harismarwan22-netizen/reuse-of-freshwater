@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fresh Water Recovery & Reuse System</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', sans-serif; background: #0a1628; color: #e0f0ff; }
+
+  header {
+    background: linear-gradient(135deg, #0d47a1, #00838f);
+    padding: 24px 40px;
+    display: flex; align-items: center; justify-content: space-between;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  }
+  header h1 { font-size: 1.8rem; font-weight: 700; letter-spacing: 1px; }
+  header h1 span { color: #80deea; }
+  .badge { background: #00bcd4; color: #fff; padding: 6px 16px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; }
+
+  .main { padding: 30px 40px; max-width: 1400px; margin: 0 auto; }
+
+  /* KPI Cards */
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 32px; }
+  .kpi-card {
+    background: linear-gradient(145deg, #112240, #1a3a5c);
+    border: 1px solid #1e4976;
+    border-radius: 14px; padding: 22px;
+    position: relative; overflow: hidden;
+    transition: transform 0.2s;
+  }
+  .kpi-card:hover { transform: translateY(-3px); }
+  .kpi-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: var(--accent);
+  }
+  .kpi-card .label { font-size: 0.78rem; color: #90a4ae; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+  .kpi-card .value { font-size: 2rem; font-weight: 700; color: var(--accent); }
+  .kpi-card .sub { font-size: 0.82rem; color: #78909c; margin-top: 6px; }
+
+  /* Section */
+  .section-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 32px; }
+  .section-grid.three { grid-template-columns: 1fr 1fr 1fr; }
+  .card {
+    background: #112240; border: 1px solid #1e4976;
+    border-radius: 14px; padding: 24px;
+  }
+  .card h3 { font-size: 1rem; color: #80deea; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .card h3 .icon { font-size: 1.3rem; }
+
+  /* Bar Chart */
+  .bar-chart { display: flex; flex-direction: column; gap: 10px; }
+  .bar-row { display: flex; align-items: center; gap: 10px; font-size: 0.82rem; }
+  .bar-label { width: 130px; color: #90a4ae; text-align: right; flex-shrink: 0; }
+  .bar-track { flex: 1; background: #0d2137; border-radius: 6px; height: 22px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 6px; display: flex; align-items: center; padding-left: 8px; font-size: 0.75rem; font-weight: 600; color: #fff; transition: width 1.5s ease; }
+  .bar-val { width: 55px; color: #cfd8dc; font-weight: 600; }
+
+  /* Flow Diagram */
+  .flow { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+  .flow-step {
+    background: linear-gradient(135deg, #1565c0, #006064);
+    border-radius: 10px; padding: 14px 12px; text-align: center;
+    min-width: 100px; font-size: 0.78rem; font-weight: 600; flex: 1;
+  }
+  .flow-step .step-icon { font-size: 1.6rem; display: block; margin-bottom: 6px; }
+  .flow-arrow { font-size: 1.4rem; color: #00bcd4; flex-shrink: 0; }
+
+  /* Progress rings */
+  .ring-grid { display: flex; justify-content: space-around; align-items: center; flex-wrap: wrap; gap: 16px; }
+  .ring-item { text-align: center; }
+  svg.ring { transform: rotate(-90deg); }
+  circle.ring-bg { fill: none; stroke: #1e4976; stroke-width: 8; }
+  circle.ring-fill { fill: none; stroke-width: 8; stroke-linecap: round; transition: stroke-dashoffset 2s ease; }
+  .ring-label { font-size: 0.8rem; color: #90a4ae; margin-top: 8px; }
+  .ring-val { font-size: 1.1rem; font-weight: 700; }
+
+  /* Table */
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  th { background: #0d2137; color: #80deea; padding: 10px 12px; text-align: left; font-weight: 600; }
+  td { padding: 9px 12px; border-bottom: 1px solid #1e4976; color: #cfd8dc; }
+  tr:hover td { background: #1a3a5c33; }
+  .badge-sm { padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
+  .ok { background: #004d40; color: #80cbc4; }
+  .warn { background: #4a2900; color: #ffcc02; }
+  .high { background: #1a237e; color: #90caf9; }
+
+  /* Simulation */
+  .sim-controls { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; align-items: flex-end; }
+  .sim-controls label { font-size: 0.8rem; color: #90a4ae; display: block; margin-bottom: 4px; }
+  .sim-controls input[type=range] { width: 160px; accent-color: #00bcd4; }
+  .sim-controls .val-display { color: #80deea; font-weight: 700; font-size: 0.9rem; }
+  button.run-btn {
+    background: linear-gradient(135deg, #00838f, #0d47a1);
+    border: none; color: #fff; padding: 10px 24px;
+    border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  button.run-btn:hover { opacity: 0.85; }
+
+  canvas { width: 100% !important; max-height: 220px; }
+
+  .full-width { grid-column: 1 / -1; }
+  .status-bar { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 20px; }
+  .status-item { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .green { background: #4caf50; }
+  .blue { background: #2196f3; }
+  .orange { background: #ff9800; }
+
+  footer { text-align: center; padding: 20px; color: #546e7a; font-size: 0.8rem; border-top: 1px solid #1e4976; margin-top: 20px; }
+
+  @media(max-width: 768px) {
+    .main { padding: 16px; }
+    .section-grid, .section-grid.three { grid-template-columns: 1fr; }
+    header { padding: 16px 20px; }
+    header h1 { font-size: 1.2rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>💧 Fresh Water <span>Recovery & Reuse</span> System</h1>
+    <p style="color:#b0bec5;font-size:0.85rem;margin-top:4px;">Integrated Water Management Dashboard — Tirunelveli Region</p>
+  </div>
+  <span class="badge">🟢 SYSTEM ACTIVE</span>
+</header>
+
+<div class="main">
+
+  <!-- KPI Cards -->
+  <div class="kpi-grid">
+    <div class="kpi-card" style="--accent:#00bcd4">
+      <div class="label">Total Water Recovered</div>
+      <div class="value" id="kpi1">0</div>
+      <div class="sub">Litres per day</div>
+    </div>
+    <div class="kpi-card" style="--accent:#4caf50">
+      <div class="label">Reuse Efficiency</div>
+      <div class="value" id="kpi2">0%</div>
+      <div class="sub">Of total input water</div>
+    </div>
+    <div class="kpi-card" style="--accent:#ff9800">
+      <div class="label">Rainwater Harvested</div>
+      <div class="value" id="kpi3">0</div>
+      <div class="sub">Litres / day</div>
+    </div>
+    <div class="kpi-card" style="--accent:#9c27b0">
+      <div class="label">Greywater Recycled</div>
+      <div class="value" id="kpi4">0</div>
+      <div class="sub">Litres / day</div>
+    </div>
+    <div class="kpi-card" style="--accent:#f44336">
+      <div class="label">Water Saved Annually</div>
+      <div class="value" id="kpi5">0</div>
+      <div class="sub">Kilolitres / year</div>
+    </div>
+    <div class="kpi-card" style="--accent:#03a9f4">
+      <div class="label">CO₂ Offset</div>
+      <div class="value" id="kpi6">0</div>
+      <div class="sub">kg CO₂ / year</div>
+    </div>
+  </div>
+
+  <!-- Flow Diagram -->
+  <div class="card" style="margin-bottom:24px;">
+    <h3><span class="icon">🔄</span>Water Recovery & Treatment Flow</h3>
+    <div class="flow">
+      <div class="flow-step"><span class="step-icon">🌧️</span>Rainfall / Input Source</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><span class="step-icon">🏗️</span>Collection & Storage</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><span class="step-icon">🔬</span>Pre-filtration</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><span class="step-icon">⚗️</span>Treatment (RO/UV)</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><span class="step-icon">✅</span>Quality Check</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><span class="step-icon">🚿</span>Distribution & Reuse</div>
+    </div>
+    <div class="status-bar">
+      <div class="status-item"><div class="dot green"></div>Rainwater Harvesting: Online</div>
+      <div class="status-item"><div class="dot green"></div>Greywater Recycling: Online</div>
+      <div class="status-item"><div class="dot blue"></div>RO Treatment: Running</div>
+      <div class="status-item"><div class="dot orange"></div>UV Disinfection: Standby</div>
+    </div>
+  </div>
+
+  <!-- Charts Row -->
+  <div class="section-grid">
+    <div class="card">
+      <h3><span class="icon">📊</span>Daily Recovery by Source (L)</h3>
+      <div class="bar-chart" id="barChart"></div>
+    </div>
+    <div class="card">
+      <h3><span class="icon">🎯</span>Water Quality Parameters</h3>
+      <div class="ring-grid" id="ringGrid"></div>
+    </div>
+  </div>
+
+  <!-- Simulation -->
+  <div class="card full-width" style="margin-bottom:24px;">
+    <h3><span class="icon">⚙️</span>Water Recovery Simulator</h3>
+    <div class="sim-controls">
+      <div>
+        <label>Rainfall (mm/day): <span class="val-display" id="rfVal">80</span></label>
+        <input type="range" id="rainfall" min="0" max="300" value="80" oninput="updateSim()">
+      </div>
+      <div>
+        <label>Catchment Area (m²): <span class="val-display" id="caVal">500</span></label>
+        <input type="range" id="catchArea" min="50" max="2000" value="500" oninput="updateSim()">
+      </div>
+      <div>
+        <label>Household Size: <span class="val-display" id="hhVal">5</span></label>
+        <input type="range" id="hhSize" min="1" max="20" value="5" oninput="updateSim()">
+      </div>
+      <div>
+        <label>Greywater Recovery %: <span class="val-display" id="gwVal">60</span>%</label>
+        <input type="range" id="gwRate" min="0" max="100" value="60" oninput="updateSim()">
+      </div>
+      <button class="run-btn" onclick="runAnimation()">▶ Run Simulation</button>
+    </div>
+    <canvas id="simCanvas" height="200"></canvas>
+    <div id="simResult" style="margin-top:14px;font-size:0.9rem;color:#80deea;font-weight:600;"></div>
+  </div>
+
+  <!-- Monitoring Table -->
+  <div class="section-grid">
+    <div class="card">
+      <h3><span class="icon">🧪</span>Treatment Stage Monitoring</h3>
+      <table>
+        <thead>
+          <tr><th>Stage</th><th>Flow (L/hr)</th><th>Efficiency</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Sediment Filter</td><td>850</td><td>95%</td><td><span class="badge-sm ok">OK</span></td></tr>
+          <tr><td>Activated Carbon</td><td>820</td><td>88%</td><td><span class="badge-sm ok">OK</span></td></tr>
+          <tr><td>Reverse Osmosis</td><td>740</td><td>92%</td><td><span class="badge-sm ok">OK</span></td></tr>
+          <tr><td>UV Disinfection</td><td>730</td><td>99.9%</td><td><span class="badge-sm high">Active</span></td></tr>
+          <tr><td>pH Correction</td><td>730</td><td>97%</td><td><span class="badge-sm ok">OK</span></td></tr>
+          <tr><td>Distribution Pump</td><td>700</td><td>82%</td><td><span class="badge-sm warn">Check</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h3><span class="icon">🏆</span>Monthly Savings Report</h3>
+      <table>
+        <thead>
+          <tr><th>Month</th><th>Recovered (kL)</th><th>Cost Saved (₹)</th><th>Efficiency</th></tr>
+        </thead>
+        <tbody id="monthlyTable"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Environmental Impact -->
+  <div class="section-grid three" style="margin-top:0;">
+    <div class="card">
+      <h3><span class="icon">🌱</span>Environmental Impact</h3>
+      <div class="bar-chart">
+        <div class="bar-row"><div class="bar-label">Groundwater saved</div><div class="bar-track"><div class="bar-fill" style="width:82%;background:linear-gradient(90deg,#00897b,#43a047)">82%</div></div></div>
+        <div class="bar-row"><div class="bar-label">Runoff reduced</div><div class="bar-track"><div class="bar-fill" style="width:67%;background:linear-gradient(90deg,#0288d1,#0097a7)">67%</div></div></div>
+        <div class="bar-row"><div class="bar-label">Energy saved</div><div class="bar-track"><div class="bar-fill" style="width:55%;background:linear-gradient(90deg,#f57c00,#fbc02d)">55%</div></div></div>
+        <div class="bar-row"><div class="bar-label">Pollution prevented</div><div class="bar-track"><div class="bar-fill" style="width:74%;background:linear-gradient(90deg,#7b1fa2,#e91e63)">74%</div></div></div>
+      </div>
+    </div>
+    <div class="card">
+      <h3><span class="icon">💡</span>Reuse Applications</h3>
+      <div class="bar-chart" id="reuseChart"></div>
+    </div>
+    <div class="card">
+      <h3><span class="icon">📋</span>System Specifications</h3>
+      <table>
+        <tr><td style="color:#80deea">Capacity</td><td>50,000 L/day</td></tr>
+        <tr><td style="color:#80deea">Technology</td><td>RO + UV + MBR</td></tr>
+        <tr><td style="color:#80deea">Storage Tanks</td><td>4 × 10,000 L</td></tr>
+        <tr><td style="color:#80deea">Solar Power</td><td>5 kWp</td></tr>
+        <tr><td style="color:#80deea">Payback Period</td><td>3.5 years</td></tr>
+        <tr><td style="color:#80deea">Water Quality</td><td>IS 10500 Standard</td></tr>
+        <tr><td style="color:#80deea">Sensors</td><td>pH, TDS, Turbidity, Flow</td></tr>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  Fresh Water Recovery & Reuse System | Developed for Tirunelveli Region | All data is simulated for demonstration
+</footer>
+
+<script>
+// ---- Data ----
+const sourceData = [
+  { label: "Rainwater Harvesting", val: 18500, color: "#00bcd4" },
+  { label: "Greywater Recycling",  val: 12000, color: "#4caf50" },
+  { label: "Wastewater Treatment", val: 9800,  color: "#ff9800" },
+  { label: "HVAC Condensate",      val: 3200,  color: "#9c27b0" },
+  { label: "RO Reject Recovery",   val: 2100,  color: "#03a9f4" },
+];
+
+const qualityParams = [
+  { label: "pH Level",    val: 94, color: "#4caf50", display: "7.2" },
+  { label: "TDS (ppm)",   val: 88, color: "#00bcd4", display: "480" },
+  { label: "Turbidity",   val: 97, color: "#ff9800", display: "0.3 NTU" },
+  { label: "Hardness",    val: 82, color: "#9c27b0", display: "Soft" },
+];
+
+const reuseApps = [
+  { label: "Irrigation",    val: 38, color: "#4caf50" },
+  { label: "Toilet Flush",  val: 22, color: "#2196f3" },
+  { label: "Drinking Water",val: 18, color: "#00bcd4" },
+  { label: "Industrial",    val: 12, color: "#ff9800" },
+  { label: "Laundry",       val: 10, color: "#9c27b0" },
+];
+
+const months = ["Aug","Sep","Oct","Nov","Dec","Jan","Feb"];
+const monthlyData = [
+  [42.5, 3825], [48.2, 4338], [55.1, 4959], [61.3, 5517],
+  [58.7, 5283], [63.2, 5688], [67.4, 6066]
+];
+
+// ---- KPI Counter Animation ----
+function animateCount(id, target, suffix, duration) {
+  let start = 0, startTime = null;
+  function step(ts) {
+    if (!startTime) startTime = ts;
+    let progress = Math.min((ts - startTime) / duration, 1);
+    let ease = 1 - Math.pow(1 - progress, 3);
+    let val = Math.floor(ease * target);
+    document.getElementById(id).textContent = val.toLocaleString() + suffix;
+    if (progress < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+window.addEventListener('load', () => {
+  animateCount('kpi1', 45600, ' L', 2000);
+  animateCount('kpi2', 78, '%', 1800);
+  animateCount('kpi3', 18500, ' L', 2200);
+  animateCount('kpi4', 12000, ' L', 2100);
+  animateCount('kpi5', 16644, ' kL', 2400);
+  animateCount('kpi6', 8322, ' kg', 2300);
+  buildBarChart();
+  buildRings();
+  buildReuseChart();
+  buildMonthlyTable();
+  drawSimChart(getSimValues());
+});
+
+// ---- Bar Chart ----
+function buildBarChart() {
+  const el = document.getElementById('barChart');
+  const max = Math.max(...sourceData.map(s => s.val));
+  el.innerHTML = sourceData.map(s => `
+    <div class="bar-row">
+      <div class="bar-label">${s.label}</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width:0%;background:${s.color};transition:width 1.5s ease" data-w="${(s.val/max*100).toFixed(0)}">
+          ${s.val.toLocaleString()}L
+        </div>
+      </div>
+    </div>`).join('');
+  setTimeout(() => {
+    el.querySelectorAll('.bar-fill').forEach(b => b.style.width = b.dataset.w + '%');
+  }, 300);
+}
+
+// ---- Ring Charts ----
+function buildRings() {
+  const grid = document.getElementById('ringGrid');
+  const r = 40, circ = 2 * Math.PI * r;
+  grid.innerHTML = qualityParams.map(q => {
+    const offset = circ * (1 - q.val / 100);
+    return `<div class="ring-item">
+      <svg class="ring" width="100" height="100" viewBox="0 0 100 100">
+        <circle class="ring-bg" cx="50" cy="50" r="${r}"/>
+        <circle class="ring-fill" cx="50" cy="50" r="${r}"
+          stroke="${q.color}"
+          stroke-dasharray="${circ}"
+          stroke-dashoffset="${circ}"
+          id="ring_${q.label.replace(/\s/g,'')}"/>
+      </svg>
+      <div class="ring-val" style="color:${q.color};margin-top:-65px">${q.display}</div>
+      <div style="height:50px"></div>
+      <div class="ring-label">${q.label}</div>
+    </div>`;
+  }).join('');
+  setTimeout(() => {
+    qualityParams.forEach(q => {
+      const el = document.getElementById('ring_' + q.label.replace(/\s/g,''));
+      if (el) el.style.strokeDashoffset = (2 * Math.PI * r * (1 - q.val / 100));
+    });
+  }, 400);
+}
+
+// ---- Reuse Chart ----
+function buildReuseChart() {
+  const el = document.getElementById('reuseChart');
+  const max = Math.max(...reuseApps.map(s => s.val));
+  el.innerHTML = reuseApps.map(s => `
+    <div class="bar-row">
+      <div class="bar-label">${s.label}</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width:0%;background:${s.color};transition:width 1.5s ease" data-w="${(s.val/max*100).toFixed(0)}">
+          ${s.val}%
+        </div>
+      </div>
+    </div>`).join('');
+  setTimeout(() => {
+    el.querySelectorAll('.bar-fill').forEach(b => b.style.width = b.dataset.w + '%');
+  }, 500);
+}
+
+// ---- Monthly Table ----
+function buildMonthlyTable() {
+  const tb = document.getElementById('monthlyTable');
+  tb.innerHTML = months.map((m, i) => `
+    <tr>
+      <td>${m} ${i < 5 ? '2025' : '2026'}</td>
+      <td>${monthlyData[i][0]} kL</td>
+      <td>₹${monthlyData[i][1].toLocaleString()}</td>
+      <td>${(75 + i * 2)}%</td>
+    </tr>`).join('');
+}
+
+// ---- Simulator ----
+function getSimValues() {
+  return {
+    rainfall: +document.getElementById('rainfall').value,
+    area: +document.getElementById('catchArea').value,
+    hh: +document.getElementById('hhSize').value,
+    gw: +document.getElementById('gwRate').value / 100
+  };
+}
+
+function updateSim() {
+  const v = getSimValues();
+  document.getElementById('rfVal').textContent = v.rainfall;
+  document.getElementById('caVal').textContent = v.area;
+  document.getElementById('hhVal').textContent = v.hh;
+  document.getElementById('gwVal').textContent = Math.round(v.gw * 100);
+  drawSimChart(v);
+}
+
+function drawSimChart(v) {
+  const canvas = document.getElementById('simCanvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.offsetWidth || 700, H = 200;
+  canvas.width = W; canvas.height = H;
+
+  // Simulate 12 months (vary rainfall seasonally)
+  const rainFactor = [0.4, 0.3, 0.5, 0.8, 1.2, 1.4, 1.3, 1.1, 0.9, 0.6, 0.5, 0.4];
+  const labels = ['Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb'];
+  const rainwaterData = rainFactor.map(f => Math.round(v.rainfall * f * v.area * 0.85));
+  const greywaterData = Array(12).fill(Math.round(v.hh * 100 * v.gw));
+  const totalData = rainwaterData.map((r, i) => r + greywaterData[i]);
+  const maxVal = Math.max(...totalData) * 1.15 || 1;
+
+  ctx.clearRect(0, 0, W, H);
+  const pad = { l: 60, r: 20, t: 20, b: 40 };
+  const cW = W - pad.l - pad.r, cH = H - pad.t - pad.b;
+  const step = cW / 11;
+
+  // Grid
+  ctx.strokeStyle = '#1e4976'; ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.t + cH - (cH / 4) * i;
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(W - pad.r, y); ctx.stroke();
+    ctx.fillStyle = '#546e7a'; ctx.font = '10px sans-serif'; ctx.textAlign = 'right';
+    ctx.fillText(Math.round(maxVal / 4 * i).toLocaleString(), pad.l - 4, y + 3);
+  }
+
+  function plotLine(data, color, fill) {
+    const pts = data.map((d, i) => ({ x: pad.l + i * step, y: pad.t + cH - (d / maxVal) * cH }));
+    if (fill) {
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pad.t + cH);
+      pts.forEach(p => ctx.lineTo(p.x, p.y));
+      ctx.lineTo(pts[pts.length - 1].x, pad.t + cH);
+      ctx.closePath();
+      ctx.fillStyle = color + '33'; ctx.fill();
+    }
+    ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = 2.5;
+    pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+    ctx.stroke();
+    pts.forEach(p => { ctx.beginPath(); ctx.arc(p.x, p.y, 3.5, 0, Math.PI*2); ctx.fillStyle = color; ctx.fill(); });
+  }
+
+  plotLine(rainwaterData, '#00bcd4', true);
+  plotLine(greywaterData, '#4caf50', true);
+  plotLine(totalData, '#ff9800', false);
+
+  // Labels
+  ctx.fillStyle = '#78909c'; ctx.font = '10px sans-serif'; ctx.textAlign = 'center';
+  labels.forEach((l, i) => ctx.fillText(l, pad.l + i * step, H - 8));
+
+  // Legend
+  const legend = [['Rainwater (L)','#00bcd4'],['Greywater (L)','#4caf50'],['Total Recovery','#ff9800']];
+  legend.forEach(([lbl, clr], i) => {
+    ctx.fillStyle = clr; ctx.fillRect(pad.l + i * 180, 4, 14, 10);
+    ctx.fillStyle = '#cfd8dc'; ctx.font = '11px sans-serif'; ctx.textAlign = 'left';
+    ctx.fillText(lbl, pad.l + i * 180 + 18, 13);
+  });
+
+  // Result
+  const totalAnnual = totalData.reduce((a, b) => a + b, 0);
+  document.getElementById('simResult').textContent =
+    `📊 Simulation Result: Annual Recovery = ${totalAnnual.toLocaleString()} L | ` +
+    `Daily Avg = ${Math.round(totalAnnual/365).toLocaleString()} L | ` +
+    `Cost Savings ≈ ₹${Math.round(totalAnnual * 0.09).toLocaleString()}/year`;
+}
+
+function runAnimation() {
+  let v = getSimValues();
+  let step = 0;
+  const target = v.rainfall;
+  document.getElementById('rainfall').value = 0;
+  document.getElementById('rfVal').textContent = 0;
+  const interval = setInterval(() => {
+    step += 5;
+    if (step >= target) { step = target; clearInterval(interval); }
+    document.getElementById('rainfall').value = step;
+    document.getElementById('rfVal').textContent = step;
+    drawSimChart({ ...v, rainfall: step });
+  }, 30);
+}
+</script>
+</body>
+</html>

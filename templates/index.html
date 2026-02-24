@@ -1,0 +1,1326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Water Quality Prediction - Fresh Water Recovery</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .result-card { display: none; }
+        .result-card.show { display: block; }
+        
+        /* Processing Animation Styles */
+        .processing-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(3, 7, 18, 0.95);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        
+        .processing-overlay.show {
+            display: flex;
+        }
+        
+        .processing-container {
+            text-align: center;
+            max-width: 500px;
+            padding: 40px;
+        }
+        
+        .processing-icon {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 30px;
+            position: relative;
+        }
+        
+        .processing-ring {
+            position: absolute;
+            inset: 0;
+            border: 4px solid rgba(6, 182, 212, 0.2);
+            border-top-color: var(--aqua-400);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        .processing-ring:nth-child(2) {
+            inset: 10px;
+            border-top-color: var(--teal-400);
+            animation-duration: 1.5s;
+            animation-direction: reverse;
+        }
+        
+        .processing-ring:nth-child(3) {
+            inset: 20px;
+            border-top-color: var(--ocean-500);
+            animation-duration: 2s;
+        }
+        
+        .processing-inner {
+            position: absolute;
+            inset: 30px;
+            background: linear-gradient(135deg, var(--aqua-500), var(--ocean-600));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            color: white;
+            box-shadow: 0 0 40px rgba(6, 182, 212, 0.5);
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .processing-steps {
+            margin-top: 40px;
+        }
+        
+        .processing-step {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            opacity: 0.3;
+            transition: all 0.5s ease;
+        }
+        
+        .processing-step.active {
+            opacity: 1;
+        }
+        
+        .processing-step.completed {
+            opacity: 1;
+        }
+        
+        .processing-step.completed .step-icon {
+            background: var(--color-safe);
+            color: white;
+        }
+        
+        .step-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--surface-raised);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.5s ease;
+        }
+        
+        .step-text {
+            text-align: left;
+        }
+        
+        .step-title {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 0.95rem;
+        }
+        
+        .step-description {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+        
+        .processing-progress {
+            width: 200px;
+            height: 4px;
+            background: var(--surface-raised);
+            border-radius: 2px;
+            margin: 30px auto 0;
+            overflow: hidden;
+        }
+        
+        .processing-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--aqua-400), var(--teal-400));
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 2px;
+        }
+        
+        /* Analysis Cards */
+        .analysis-card {
+            background: var(--surface-mid);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255,255,255,0.06);
+            transition: all 0.4s ease;
+        }
+        
+        .analysis-card:hover {
+            border-color: rgba(6, 182, 212, 0.3);
+            transform: translateY(-2px);
+        }
+        
+        .analysis-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+        
+        .analysis-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+        
+        .analysis-icon.ph { background: linear-gradient(135deg, #dbeafe, #93c5fd); color: #2563eb; }
+        .analysis-icon.turbidity { background: linear-gradient(135deg, #e0f2fe, #7dd3fc); color: #0284c7; }
+        .analysis-icon.temperature { background: linear-gradient(135deg, #fee2e2, #fca5a5); color: #dc2626; }
+        .analysis-icon.tds { background: linear-gradient(135deg, #dcfce7, #86efac); color: #16a34a; }
+        
+        .analysis-title {
+            font-weight: 600;
+            font-size: 1rem;
+            color: var(--text-primary);
+        }
+        
+        .analysis-value {
+            font-family: var(--font-mono);
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--aqua-400);
+        }
+        
+        .range-bar-container {
+            margin-top: 12px;
+        }
+        
+        .range-bar-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+        
+        .range-bar {
+            height: 8px;
+            background: var(--surface-raised);
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .range-bar-optimal {
+            position: absolute;
+            height: 100%;
+            background: rgba(16, 185, 129, 0.4);
+            border-radius: 4px;
+        }
+        
+        .range-bar-marker {
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            background: white;
+            border-radius: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            transition: left 1s ease;
+        }
+        
+        .range-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.8rem;
+            margin-top: 8px;
+            padding: 4px 12px;
+            border-radius: var(--radius-pill);
+        }
+        
+        .range-status.optimal {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--color-safe);
+        }
+        
+        .range-status.warning {
+            background: rgba(245, 158, 11, 0.15);
+            color: var(--color-warning);
+        }
+        
+        .range-status.danger {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--color-danger);
+        }
+        
+        /* Contribution Chart */
+        .contribution-chart-container {
+            height: 250px;
+            margin-top: 15px;
+        }
+        
+        /* Recommendations */
+        .recommendation-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 15px;
+            padding: 16px;
+            background: var(--surface-mid);
+            border-radius: var(--radius-md);
+            margin-bottom: 12px;
+            border-left: 4px solid;
+            transition: all 0.3s ease;
+        }
+        
+        .recommendation-item:hover {
+            transform: translateX(5px);
+        }
+        
+        .recommendation-item.high {
+            border-left-color: var(--color-danger);
+        }
+        
+        .recommendation-item.medium {
+            border-left-color: var(--color-warning);
+        }
+        
+        .recommendation-item.low {
+            border-left-color: var(--color-safe);
+        }
+        
+        .recommendation-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        
+        .recommendation-item.high .recommendation-icon {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--color-danger);
+        }
+        
+        .recommendation-item.medium .recommendation-icon {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--color-warning);
+        }
+        
+        .recommendation-item.low .recommendation-icon {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--color-safe);
+        }
+        
+        .recommendation-text {
+            flex: 1;
+        }
+        
+        .recommendation-title {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+        
+        .recommendation-desc {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+        
+        /* Step indicator */
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .step-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--surface-raised);
+            transition: all 0.3s ease;
+        }
+        
+        .step-dot.active {
+            background: var(--aqua-400);
+            box-shadow: 0 0 10px var(--aqua-400);
+        }
+        
+        .step-dot.completed {
+            background: var(--color-safe);
+        }
+        
+        /* Additional index page styles */
+        .prediction-page {
+            min-height: 100vh;
+            padding-top: 80px;
+            padding-bottom: 40px;
+        }
+        
+        .input-card {
+            background: rgba(17, 24, 39, 0.92) !important;
+            backdrop-filter: blur(24px);
+            border: 1px solid rgba(6, 182, 212, 0.15);
+        }
+        
+        .sensor-icon {
+            width: 52px;
+            height: 52px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            margin-bottom: 10px;
+            transition: all 0.4s var(--ease-spring);
+        }
+        
+        .sensor-icon:hover {
+            transform: scale(1.15) rotate(5deg);
+        }
+        
+        .sensor-icon.ph { background: linear-gradient(135deg, #dbeafe, #93c5fd); color: #2563eb; box-shadow: 0 6px 20px rgba(37, 99, 235, 0.35); }
+        .sensor-icon.turbidity { background: linear-gradient(135deg, #e0f2fe, #7dd3fc); color: #0284c7; box-shadow: 0 6px 20px rgba(2, 132, 199, 0.35); }
+        .sensor-icon.temperature { background: linear-gradient(135deg, #fee2e2, #fca5a5); color: #dc2626; box-shadow: 0 6px 20px rgba(220, 38, 38, 0.35); }
+        .sensor-icon.tds { background: linear-gradient(135deg, #dcfce7, #86efac); color: #16a34a; box-shadow: 0 6px 20px rgba(22, 163, 74, 0.35); }
+        
+        /* Hero title styling */
+        .hero-title {
+            font-family: var(--font-display);
+            font-size: clamp(1.8rem, 5vw, 2.8rem);
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            text-transform: uppercase;
+        }
+        
+        .hero-subtitle {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        
+        /* Result section styling */
+        .result-icon {
+            width: 110px;
+            height: 110px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.5rem;
+            position: relative;
+        }
+        
+        .result-icon::before {
+            content: '';
+            position: absolute;
+            inset: -8px;
+            border-radius: 50%;
+            border: 3px solid transparent;
+            animation: rotate-border 2s linear infinite;
+        }
+        
+        .result-icon.safe { 
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(6, 95, 70, 0.3));
+            box-shadow: 0 0 40px rgba(16, 185, 129, 0.3);
+        }
+        .result-icon.safe::before { border-top-color: var(--color-safe); border-right-color: var(--color-safe); }
+        
+        .result-icon.warning { 
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(146, 64, 14, 0.3));
+            box-shadow: 0 0 40px rgba(245, 158, 11, 0.3);
+        }
+        .result-icon.warning::before { border-top-color: var(--color-warning); border-right-color: var(--color-warning); }
+        
+        .result-icon.danger { 
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(159, 18, 57, 0.3));
+            box-shadow: 0 0 40px rgba(239, 68, 68, 0.3);
+        }
+        .result-icon.danger::before { border-top-color: var(--color-danger); border-right-color: var(--color-danger); }
+        
+        @keyframes rotate-border {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .result-icon i {
+            font-size: 3rem;
+            animation: icon-reveal 0.6s var(--ease-bounce) forwards;
+        }
+        
+        @keyframes icon-reveal {
+            0% { transform: scale(0) rotate(-180deg); opacity: 0; }
+            60% { transform: scale(1.2) rotate(10deg); }
+            100% { transform: scale(1) rotate(0deg); opacity: 1; }
+        }
+        
+        .result-text {
+            font-family: var(--font-display);
+            font-size: 1.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .confidence-text {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            margin-top: 0.5rem;
+        }
+        
+        .section-title {
+            font-family: var(--font-body);
+            font-weight: 600;
+            font-size: 1rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 1.25rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        
+        /* Parameter guide table enhancement */
+        .guide-table thead th {
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.15), rgba(20, 184, 166, 0.1)) !important;
+            color: var(--text-primary) !important;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.08em;
+        }
+        
+        .guide-table tbody tr {
+            transition: all 0.3s ease;
+        }
+        
+        .guide-table tbody tr:hover {
+            background: rgba(6, 182, 212, 0.08);
+            transform: translateX(4px);
+        }
+        
+        .guide-table td {
+            padding: 1rem 1.25rem;
+        }
+        
+        /* Animated background decoration */
+        .bg-decoration {
+            position: fixed;
+            width: 400px;
+            height: 400px;
+            border-radius: 50%;
+            filter: blur(80px);
+            pointer-events: none;
+            z-index: -1;
+            opacity: 0.3;
+        }
+        
+        .bg-decoration.top-left {
+            top: -100px;
+            left: -100px;
+            background: var(--aqua-500);
+            animation: float-dec 15s ease-in-out infinite;
+        }
+        
+        .bg-decoration.bottom-right {
+            bottom: -100px;
+            right: -100px;
+            background: var(--ocean-500);
+            animation: float-dec 18s ease-in-out infinite reverse;
+        }
+        
+        @keyframes float-dec {
+            0%, 100% { transform: translate(0, 0); }
+            33% { transform: translate(30px, -30px); }
+            66% { transform: translate(-20px, 20px); }
+        }
+        
+        /* New enhanced result sections */
+        .result-section {
+            margin-bottom: 30px;
+        }
+        
+        .result-section-title {
+            font-family: var(--font-display);
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .result-section-title i {
+            color: var(--aqua-400);
+        }
+    </style>
+</head>
+<body data-result-label="{{ result_label if result_label else '' }}" 
+      data-confidence="{{ confidence if confidence else 0 }}" 
+      data-safe-pct="{{ safe_pct if safe_pct else 0 }}" 
+      data-treatment-pct="{{ treatment_pct if treatment_pct else 0 }}" 
+      data-unsafe-pct="{{ unsafe_pct if unsafe_pct else 0 }}" 
+      data-ph="{{ ph if ph else 0 }}" 
+      data-turbidity="{{ turbidity if turbidity else 0 }}" 
+      data-temperature="{{ temperature if temperature else 0 }}" 
+      data-tds="{{ tds if tds else 0 }}"
+      class="prediction-page">
+
+    <!-- Processing Overlay -->
+    <div class="processing-overlay" id="processingOverlay">
+        <div class="processing-container">
+            <div class="processing-icon">
+                <div class="processing-ring"></div>
+                <div class="processing-ring"></div>
+                <div class="processing-ring"></div>
+                <div class="processing-inner">
+                    <i class="fas fa-brain"></i>
+                </div>
+            </div>
+            
+            <h3 style="color: var(--text-primary); margin-bottom: 10px;">Analyzing Water Quality</h3>
+            <p style="color: var(--text-secondary); font-size: 0.9rem;">Our AI model is processing your data</p>
+            
+            <div class="step-indicator">
+                <div class="step-dot active" id="stepDot1"></div>
+                <div class="step-dot" id="stepDot2"></div>
+                <div class="step-dot" id="stepDot3"></div>
+                <div class="step-dot" id="stepDot4"></div>
+            </div>
+            
+            <div class="processing-steps">
+                <div class="processing-step" id="step1">
+                    <div class="step-icon"><i class="fas fa-database"></i></div>
+                    <div class="step-text">
+                        <div class="step-title">Data Collection</div>
+                        <div class="step-description">Receiving sensor parameters</div>
+                    </div>
+                </div>
+                <div class="processing-step" id="step2">
+                    <div class="step-icon"><i class="fas fa-cogs"></i></div>
+                    <div class="step-text">
+                        <div class="step-title">Feature Processing</div>
+                        <div class="step-description">Normalizing input values</div>
+                    </div>
+                </div>
+                <div class="processing-step" id="step3">
+                    <div class="step-icon"><i class="fas fa-network-wired"></i></div>
+                    <div class="step-text">
+                        <div class="step-title">Neural Network Analysis</div>
+                        <div class="step-description">Running ML prediction</div>
+                    </div>
+                </div>
+                <div class="processing-step" id="step4">
+                    <div class="step-icon"><i class="fas fa-check-circle"></i></div>
+                    <div class="step-text">
+                        <div class="step-title">Generating Results</div>
+                        <div class="step-description">Computing confidence scores</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="processing-progress">
+                <div class="processing-progress-bar" id="processingProgressBar"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Background Decorations -->
+    <div class="bg-decoration top-left"></div>
+    <div class="bg-decoration bottom-right"></div>
+
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-water me-2"></i>
+                Fresh Water Recovery
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/">
+                            <i class="fas fa-home me-1"></i> Home
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/dashboard">
+                            <i class="fas fa-chart-line me-1"></i> Dashboard
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container">
+        <!-- Hero Section -->
+        <div class="row mb-5 animate-in">
+            <div class="col-12 text-center">
+                <div class="floating-icon mb-3">
+                    <div class="water-drop" style="width: 50px; height: 50px;"></div>
+                </div>
+                <h1 class="hero-title">
+                    <i class="fas fa-flask text-info me-3"></i>
+                    Water Quality Prediction
+                </h1>
+                <p class="hero-subtitle">
+                    Enter sensor readings to predict water quality using advanced AI
+                </p>
+            </div>
+        </div>
+
+        <!-- Error Alert -->
+        {% if error %}
+        <div class="alert alert-danger animate-in" role="alert">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            {{ error }}
+        </div>
+        {% endif %}
+
+        <!-- Prediction Form Card -->
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                <div class="card input-card shadow-lg animate-in">
+                    <div class="card-header bg-gradient-primary">
+                        <h4 class="mb-0">
+                            <i class="fas fa-sliders-h me-2"></i>
+                            Sensor Input Parameters
+                        </h4>
+                    </div>
+                    <div class="card-body p-4">
+                        <form method="POST" action="/predict" id="predictionForm" onsubmit="showProcessing()">
+                            <div class="row g-4">
+                                <!-- pH Level -->
+                                <div class="col-md-6">
+                                    <div class="input-group-lg">
+                                        <label for="ph" class="form-label">
+                                            <div class="sensor-icon ph">
+                                                <i class="fas fa-vial"></i>
+                                            </div>
+                                            pH Level <span class="text-muted">(0-14)</span>
+                                        </label>
+                                        <input type="number" class="form-control" id="ph" name="ph" 
+                                               step="0.1" min="0" max="14" value="7.0" required>
+                                        <div class="form-text mt-2">
+                                            <i class="fas fa-info-circle me-1"></i>
+                                            Optimal range: 6.5 - 8.5
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Turbidity -->
+                                <div class="col-md-6">
+                                    <div class="input-group-lg">
+                                        <label for="turbidity" class="form-label">
+                                            <div class="sensor-icon turbidity">
+                                                <i class="fas fa-cloud"></i>
+                                            </div>
+                                            Turbidity <span class="text-muted">(NTU)</span>
+                                        </label>
+                                        <input type="number" class="form-control" id="turbidity" name="turbidity" 
+                                               step="0.1" min="0" max="100" value="5.0" required>
+                                        <div class="form-text mt-2">
+                                            <i class="fas fa-info-circle me-1"></i>
+                                            Optimal: less than 10 NTU
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Temperature -->
+                                <div class="col-md-6">
+                                    <div class="input-group-lg">
+                                        <label for="temperature" class="form-label">
+                                            <div class="sensor-icon temperature">
+                                                <i class="fas fa-thermometer-half"></i>
+                                            </div>
+                                            Temperature <span class="text-muted">(°C)</span>
+                                        </label>
+                                        <input type="number" class="form-control" id="temperature" name="temperature" 
+                                               step="0.1" min="0" max="40" value="25.0" required>
+                                        <div class="form-text mt-2">
+                                            <i class="fas fa-info-circle me-1"></i>
+                                            Optimal range: 15 - 30°C
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- TDS -->
+                                <div class="col-md-6">
+                                    <div class="input-group-lg">
+                                        <label for="tds" class="form-label">
+                                            <div class="sensor-icon tds">
+                                                <i class="fas fa-tint"></i>
+                                            </div>
+                                            TDS <span class="text-muted">(mg/L)</span>
+                                        </label>
+                                        <input type="number" class="form-control" id="tds" name="tds" 
+                                               step="1" min="0" max="1000" value="200" required>
+                                        <div class="form-text mt-2">
+                                            <i class="fas fa-info-circle me-1"></i>
+                                            Optimal: less than 500 mg/L
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Action Buttons -->
+                            <div class="text-center mt-5">
+                                <button type="submit" class="btn btn-primary btn-lg px-5 me-2">
+                                    <i class="fas fa-microchip me-2"></i>
+                                    Predict Quality
+                                </button>
+                                <button type="reset" class="btn btn-secondary btn-lg px-5 ms-2">
+                                    <i class="fas fa-redo me-2"></i>
+                                    Reset
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Result Card -->
+        <div class="row justify-content-center mt-4">
+            <div class="col-lg-10">
+                <div id="resultCard" class="card result-card shadow-xl">
+                    <div id="resultHeader" class="card-header result-header">
+                        <h4 class="mb-0">
+                            <i class="fas fa-clipboard-check me-2"></i>
+                            Prediction Result
+                        </h4>
+                    </div>
+                    <div class="card-body p-4">
+                        <!-- Main Result -->
+                        <div class="text-center mb-4">
+                            <div id="resultIcon" class="result-icon">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                            <h2 id="resultLabel" class="result-text">
+                                Safe for Reuse
+                            </h2>
+                            <p class="confidence-text">
+                                Confidence: <strong id="confidence">0%</strong>
+                            </p>
+                        </div>
+
+                        <!-- Probability Distribution -->
+                        <div class="probability-section">
+                            <h5 class="section-title">
+                                <i class="fas fa-chart-pie me-2"></i>
+                                Probability Distribution
+                            </h5>
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <div class="probability-card safe">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <h6 class="mb-0">
+                                                <i class="fas fa-check-circle text-success me-2"></i>
+                                                Safe for Reuse
+                                            </h6>
+                                            <span class="badge bg-success" id="safePct">0%</span>
+                                        </div>
+                                        <div class="progress">
+                                            <div id="safeBar" class="progress-bar bg-success" role="progressbar" style="width: 0%">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="probability-card treatment">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <h6 class="mb-0">
+                                                <i class="fas fa-exclamation-circle text-warning me-2"></i>
+                                                Needs Treatment
+                                            </h6>
+                                            <span class="badge bg-warning text-dark" id="treatmentPct">0%</span>
+                                        </div>
+                                        <div class="progress">
+                                            <div id="treatmentBar" class="progress-bar bg-warning" role="progressbar" style="width: 0%">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="probability-card unsafe">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <h6 class="mb-0">
+                                                <i class="fas fa-times-circle text-danger me-2"></i>
+                                                Unsafe
+                                            </h6>
+                                            <span class="badge bg-danger" id="unsafePct">0%</span>
+                                        </div>
+                                        <div class="progress">
+                                            <div id="unsafeBar" class="progress-bar bg-danger" role="progressbar" style="width: 0%">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Parameter Analysis Section -->
+                        <div class="result-section">
+                            <h5 class="result-section-title">
+                                <i class="fas fa-microscope"></i>
+                                Parameter-by-Parameter Analysis
+                            </h5>
+                            <div class="row g-3" id="parameterAnalysis">
+                                <!-- pH Analysis -->
+                                <div class="col-md-6 col-lg-3">
+                                    <div class="analysis-card">
+                                        <div class="analysis-header">
+                                            <div class="analysis-icon ph">
+                                                <i class="fas fa-vial"></i>
+                                            </div>
+                                            <div>
+                                                <div class="analysis-title">pH Level</div>
+                                                <div class="analysis-value" id="phAnalysisValue">7.0</div>
+                                            </div>
+                                        </div>
+                                        <div class="range-bar-container">
+                                            <div class="range-bar-label">
+                                                <span>0</span>
+                                                <span>Optimal: 6.5-8.5</span>
+                                                <span>14</span>
+                                            </div>
+                                            <div class="range-bar">
+                                                <div class="range-bar-optimal" style="left: 46%; width: 14%;"></div>
+                                                <div class="range-bar-marker" id="phMarker" style="left: 50%;"></div>
+                                            </div>
+                                        </div>
+                                        <div class="range-status optimal" id="phStatus">
+                                            <i class="fas fa-check-circle"></i>
+                                            <span>Optimal Range</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Turbidity Analysis -->
+                                <div class="col-md-6 col-lg-3">
+                                    <div class="analysis-card">
+                                        <div class="analysis-header">
+                                            <div class="analysis-icon turbidity">
+                                                <i class="fas fa-cloud"></i>
+                                            </div>
+                                            <div>
+                                                <div class="analysis-title">Turbidity</div>
+                                                <div class="analysis-value" id="turbidityAnalysisValue">5.0 NTU</div>
+                                            </div>
+                                        </div>
+                                        <div class="range-bar-container">
+                                            <div class="range-bar-label">
+                                                <span>0</span>
+                                                <span>Optimal: <10</span>
+                                                <span>100</span>
+                                            </div>
+                                            <div class="range-bar">
+                                                <div class="range-bar-optimal" style="left: 0%; width: 10%;"></div>
+                                                <div class="range-bar-marker" id="turbidityMarker" style="left: 5%;"></div>
+                                            </div>
+                                        </div>
+                                        <div class="range-status optimal" id="turbidityStatus">
+                                            <i class="fas fa-check-circle"></i>
+                                            <span>Optimal Range</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Temperature Analysis -->
+                                <div class="col-md-6 col-lg-3">
+                                    <div class="analysis-card">
+                                        <div class="analysis-header">
+                                            <div class="analysis-icon temperature">
+                                                <i class="fas fa-thermometer-half"></i>
+                                            </div>
+                                            <div>
+                                                <div class="analysis-title">Temperature</div>
+                                                <div class="analysis-value" id="temperatureAnalysisValue">25.0°C</div>
+                                            </div>
+                                        </div>
+                                        <div class="range-bar-container">
+                                            <div class="range-bar-label">
+                                                <span>0</span>
+                                                <span>Optimal: 15-30</span>
+                                                <span>40</span>
+                                            </div>
+                                            <div class="range-bar">
+                                                <div class="range-bar-optimal" style="left: 37.5%; width: 37.5%;"></div>
+                                                <div class="range-bar-marker" id="temperatureMarker" style="left: 62.5%;"></div>
+                                            </div>
+                                        </div>
+                                        <div class="range-status optimal" id="temperatureStatus">
+                                            <i class="fas fa-check-circle"></i>
+                                            <span>Optimal Range</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- TDS Analysis -->
+                                <div class="col-md-6 col-lg-3">
+                                    <div class="analysis-card">
+                                        <div class="analysis-header">
+                                            <div class="analysis-icon tds">
+                                                <i class="fas fa-tint"></i>
+                                            </div>
+                                            <div>
+                                                <div class="analysis-title">TDS</div>
+                                                <div class="analysis-value" id="tdsAnalysisValue">200 mg/L</div>
+                                            </div>
+                                        </div>
+                                        <div class="range-bar-container">
+                                            <div class="range-bar-label">
+                                                <span>0</span>
+                                                <span>Optimal: <500</span>
+                                                <span>1000</span>
+                                            </div>
+                                            <div class="range-bar">
+                                                <div class="range-bar-optimal" style="left: 0%; width: 50%;"></div>
+                                                <div class="range-bar-marker" id="tdsMarker" style="left: 20%;"></div>
+                                            </div>
+                                        </div>
+                                        <div class="range-status optimal" id="tdsStatus">
+                                            <i class="fas fa-check-circle"></i>
+                                            <span>Optimal Range</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Parameter Contribution Chart -->
+                        <div class="result-section">
+                            <h5 class="result-section-title">
+                                <i class="fas fa-balance-scale"></i>
+                                Parameter Contribution to Prediction
+                            </h5>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="analysis-card">
+                                        <div class="contribution-chart-container">
+                                            <canvas id="contributionChart"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="analysis-card">
+                                        <h6 style="color: var(--text-secondary); margin-bottom: 15px;">
+                                            <i class="fas fa-info-circle me-2"></i>
+                                            How Each Parameter Affects the Prediction
+                                        </h6>
+                                        <div id="contributionDetails">
+                                            <div class="mb-3">
+                                                <div class="d-flex justify-content-between mb-1">
+                                                    <span style="color: var(--text-primary);">pH Level</span>
+                                                    <span id="phContribution" style="color: var(--aqua-400);">25%</span>
+                                                </div>
+                                                <div class="progress" style="height: 6px;">
+                                                    <div class="progress-bar bg-info" id="phContributionBar" style="width: 25%;"></div>
+                                                </div>
+                                            </div>
+                                            <div class="mb-3">
+                                                <div class="d-flex justify-content-between mb-1">
+                                                    <span style="color: var(--text-primary);">Turbidity</span>
+                                                    <span id="turbidityContribution" style="color: var(--aqua-400);">25%</span>
+                                                </div>
+                                                <div class="progress" style="height: 6px;">
+                                                    <div class="progress-bar bg-info" id="turbidityContributionBar" style="width: 25%;"></div>
+                                                </div>
+                                            </div>
+                                            <div class="mb-3">
+                                                <div class="d-flex justify-content-between mb-1">
+                                                    <span style="color: var(--text-primary);">Temperature</span>
+                                                    <span id="temperatureContribution" style="color: var(--aqua-400);">25%</span>
+                                                </div>
+                                                <div class="progress" style="height: 6px;">
+                                                    <div class="progress-bar bg-info" id="temperatureContributionBar" style="width: 25%;"></div>
+                                                </div>
+                                            </div>
+                                            <div class="mb-3">
+                                                <div class="d-flex justify-content-between mb-1">
+                                                    <span style="color: var(--text-primary);">TDS</span>
+                                                    <span id="tdsContribution" style="color: var(--aqua-400);">25%</span>
+                                                </div>
+                                                <div class="progress" style="height: 6px;">
+                                                    <div class="progress-bar bg-info" id="tdsContributionBar" style="width: 25%;"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Recommendations Section -->
+                        <div class="result-section">
+                            <h5 class="result-section-title">
+                                <i class="fas fa-lightbulb"></i>
+                                Recommendations & Actions
+                            </h5>
+                            <div id="recommendations">
+                                <!-- Recommendations will be dynamically inserted based on the result -->
+                                <div class="recommendation-item low">
+                                    <div class="recommendation-icon">
+                                        <i class="fas fa-check"></i>
+                                    </div>
+                                    <div class="recommendation-text">
+                                        <div class="recommendation-title">Water Quality is Good</div>
+                                        <div class="recommendation-desc">All parameters are within acceptable ranges. The water is safe for reuse in appropriate applications.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Input Summary -->
+                        <div class="input-summary mt-4">
+                            <h5 class="section-title">
+                                <i class="fas fa-list-alt me-2"></i>
+                                Input Summary
+                            </h5>
+                            <div class="row g-3">
+                                <div class="col-6 col-md-3">
+                                    <div class="summary-item">
+                                        <i class="fas fa-vial"></i>
+                                        <strong>pH:</strong> <span id="phValue">-</span>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-3">
+                                    <div class="summary-item">
+                                        <i class="fas fa-cloud"></i>
+                                        <strong>Turbidity:</strong> <span id="turbidityValue">-</span> NTU
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-3">
+                                    <div class="summary-item">
+                                        <i class="fas fa-thermometer-half"></i>
+                                        <strong>Temp:</strong> <span id="temperatureValue">-</span>°C
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-3">
+                                    <div class="summary-item">
+                                        <i class="fas fa-tint"></i>
+                                        <strong>TDS:</strong> <span id="tdsValue">-</span> mg/L
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Parameter Guide -->
+        <div class="row justify-content-center mt-4">
+            <div class="col-lg-10">
+                <div class="card shadow-sm animate-in">
+                    <div class="card-body p-4">
+                        <h5 class="section-title mb-4">
+                            <i class="fas fa-book-open text-primary me-2"></i>
+                            Water Quality Parameters Guide
+                        </h5>
+                        <div class="table-responsive">
+                            <table class="table table-bordered guide-table mb-0">
+                                <thead>
+                                    <tr>
+                                        <th><i class="fas fa-cog me-2"></i>Parameter</th>
+                                        <th><i class="fas fa-check-circle me-2"></i>Safe Range</th>
+                                        <th><i class="fas fa-ruler me-2"></i>Unit</th>
+                                        <th><i class="fas fa-info-circle me-2"></i>Description</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><strong>pH</strong></td>
+                                        <td><span class="badge bg-success">6.5 - 8.5</span></td>
+                                        <td>-</td>
+                                        <td>Measures acidity/alkalinity of water</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Turbidity</strong></td>
+                                        <td><span class="badge bg-success">< 10</span></td>
+                                        <td>NTU</td>
+                                        <td>Measures water clarity/cloudiness</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Temperature</strong></td>
+                                        <td><span class="badge bg-success">15 - 30</span></td>
+                                        <td>°C</td>
+                                        <td>Water temperature affecting dissolved oxygen</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>TDS</strong></td>
+                                        <td><span class="badge bg-success">< 500</span></td>
+                                        <td>mg/L</td>
+                                        <td>Total dissolved solids concentration</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="text-center">
+        <div class="container">
+            <p class="mb-2">
+                <i class="fas fa-recycle me-2"></i>
+                Fresh Water Recovery System
+            </p>
+            <small class="text-muted">Powered by Machine Learning & Flask</small>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Result Display Script -->
+    <script>
+        // Processing Animation Function
+        function showProcessing() {
+            const overlay = document.getElementById('processingOverlay');
+            overlay.classList.add('show');
+            
+            const steps = ['step1', 'step2', 'step3', 'step4'];
+            const progressBar = document.getElementById('processingProgressBar');
+            
+            let currentStep = 0;
+            const totalDuration = 2500; // 2.5 seconds total
+            const stepDuration = totalDuration / steps.length;
+            
+            function animateStep(stepIndex) {
+                if (stepIndex >= steps.length) {
+                    // Animation complete, let form submit
+                    setTimeout(() => {
+                        overlay.classList.remove('show');
+                    }, 300);
+                    return;
+                }
+                
+                // Update step dots
+                document.querySelectorAll('.step-dot').forEach((dot, i) => {
+                    dot.classList.remove('active', 'completed');
+                    if (i < stepIndex) {
+                        dot.classList.add('completed');
+                    } else if (i === stepIndex) {
+                        dot.classList.add('active');
+                    }
+                });
+                
+                // Mark current step as active
+                document.getElementById(steps[stepIndex]).classList.add('active');
+                
+                // Update progress
+                const progress = ((stepIndex + 1) / steps.length) * 100;
+                progressBar.style.width = progress + '%';
+                
+                setTimeout(() => {
+                    document.getElementById(steps[stepIndex]).classList.add('completed');
+                    animateStep(stepIndex + 1);
+                }, stepDuration);
+            }
+            
+            // Start animation
+            setTimeout(() => {
+                animateStep(0);
+            }, 100);
+        }
+        
+        // Optimal ranges
+        const optimalRanges = {
+            ph: { min: 6.5, max: 8.5, display: '6.5 - 8.5' },
+            turbidity: { min: 0, max: 10, display: '< 10 NTU' },
+            temperature: { min: 15, max: 30, display: '15 - 30°C' },
+            tds: { min: 0, max: 500, display: '< 500 mg/L' }
+        };
+        
+        // Check if value is in optimal range
+        function checkOptimal(parameter, value) {
+            const range = optimalRanges[parameter];
+            if (value >= range.min && value <= range.max) {
+                return { status: 'optimal', icon: 'check-circle', text: 'Optimal Range' };
+            } else if (parameter === 'ph') {
+                if (value < 6.0 || value > 9.0) {
+                    return { status: 'danger', icon: 'times-circle', text: 'Outside Range' };
+                }
+                return { status: 'warning', icon: 'exclamation-circle', text: 'Slightly Off' };
+            } else if (parameter === 'turbidity' || parameter === 'tds') {
+                if (value > range.max * 1.5) {
+                    return { status: 'danger', icon: 'times-circle', text: 'Outside Range' };
+                }
+                return { status: 'warning', icon: 'exclamation-circle', text: 'Slightly High' };
+            } else if (parameter === 'temperature') {
+                if (value < range.min - 5 || value > range.max + 5) {
+                    return { status: 'danger', icon: 'times-circle', text: 'Outside Range' };
+                }
+                return { status: 'warning', icon: 'exclamation-circle', text: 'Slightly Off' };
+            }
+            return { status: 'warning', icon: 'exclamation-circle', text: 'Slightly Off' };
+        }
+        
+        // Calculate contribution based on how far from optimal
+        function calculateContribution(ph, turbidity, temperature, tds) {
+            const phDeviation = Math.abs(ph - 7) / 7; // 7 is neutral pH
+            const turbidityDeviation = turbidity / 50;
+            const tempDeviation = Math.abs(temperature - 22.5) / 22.5;
+            const tdsDeviation = tds / 500;
+            
+            const total = phDeviation + turbidityDeviation + tempDeviation + tdsDeviation;
+            
+            return {
+                ph: Math.round((1 - phDeviation / total) * 100),
+                turbidity: Math.round((1 - turbidityDeviation / total) * 100),
+                temperature: Math.round((1 - tempDeviation / total) * 100),
+                tds: Math.round((1 - tdsDeviation / total) * 100)
+            };
+        }
+        
+        // Generate recommendations based on parameters and result
+        function generateRecommendations(ph, turbidity, temperature, tds, resultLabel) {
+            const recommendations = [];
+            
+            if (resultLabel === 'Safe for Reuse') {
+                recommendations.push({
+                    priority: 'low',
+                    icon: 'check',
+                    title: 'Water Quality is Good',
+                    desc: 'All parameters are within acceptable ranges. The water is safe for reuse in appropriate applications.'
+                });
+                recommendations.push({
+                    priority: 'low',
+                    icon: 'clock',
+                    title: 'Regular Monitoring Recommended',
+                    desc: 'Continue regular water quality testing to maintain safe levels.'
+                });
+            } else if (resultLabel === 'Needs Treatment') {
+                if (ph < 6.5 || ph > 8.5) {
+                    recommendations.push({
+                        priority: 'medium',
+                        icon: 'adjust',
+                        title: 'pH Adjustment Required',
